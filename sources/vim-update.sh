@@ -1,15 +1,17 @@
 #!/bin/bash
 debug=""
 #debug="echo "
-branches=( "master" "f27" "f26" )
-releases=( "fc28" "fc27" "fc26" )
-regexps=( "fc28" "\|fc27" "\|fc26" )
-branches_count=4
+branches=( "master" "f28" "f27" )
+releases=( "fc29" "fc28" "fc27" )
+regexps=( "fc29" "\|fc28" "\|fc27" )
+bodhi_enabled=( "0" "1" "1")
+branches_count=3
 #releases_regexp=fc28\\\|fc27\\\|fc28
 
 branches_index=0
 release_index=0
 regexp_index=0
+bodhi_enabled_index=0
 done_build=0
 releases_regexp="${regexps[@]: regexp_index: 1}"
 let "regexp_index+=1"
@@ -25,7 +27,7 @@ if [ "x$1" == "x--force" ]; then
 fi
 
 DATE=`date +"%a %b %d %Y"`
-fedpkg switch-branch "${branches[@]: $branches_index: 1}"
+$debug fedpkg switch-branch "${branches[@]: $branches_index: 1}"
 
 
 if [ $? -ne 0 ]; then
@@ -34,6 +36,7 @@ if [ $? -ne 0 ]; then
 fi
 
 MAJORVERSION=`grep "define baseversion" vim.spec | cut -d ' ' -f 3`
+MAJORVERDIR=$(echo $MAJORVERSION | sed -e 's/\.//')
 ORIGPL=`grep "define patchlevel" vim.spec | cut -d ' ' -f 3 | sed -e "s/^0*//g"`
 ORIGPLFILLED=`printf "%03d" $ORIGPL`
 
@@ -52,6 +55,7 @@ LASTTAG=$(git describe --tags $(git rev-list --tags --max-count=1))
 
 # vim upstream tags have the form v7.4.123. Remove the 'v' and get major release and patchlevel:
 UPSTREAMMAJOR=$(echo $LASTTAG | sed -e 's/v\([0-9]*\.[0-9]*\).*/\1/')
+UPSTREAMMAJORDIR=$(echo $UPSTREAMMAJOR | sed -e 's/\.//')
 LASTPL=`echo $LASTTAG| sed -e 's/.*\.//;s/^0*//'`
 LASTPLFILLED=`printf "%03d" $LASTPL`
 if [ $force -ne 1 -a "$ORIGPLFILLED" == "$LASTPLFILLED" ]; then
@@ -75,7 +79,8 @@ if [ $CHANGES -ne 0 ]; then
    CHLOG="* $DATE Karsten Hopp <karsten@redhat.com> $UPSTREAMMAJOR"
    $debug sed -i -e "/Release: /cRelease: 1%{?dist}" $SPEC
    if [ "x$MAJORVERSION" != "x$UPSTREAMMAJOR" ]; then
-      $debug sed -i -s "s/define baseversion: $MAJORVERSION/define baseversion: $UPSTREAMMAJOR=/" $SPEC
+      $debug sed -i -s "s/define baseversion $MAJORVERSION/define baseversion $UPSTREAMMAJOR/" $SPEC
+      $debug sed -i -s "s/define vimdir vim$MAJORVERDIR/define vimdir vim$UPSTREAMMAJORDIR/" $SPEC
    fi
    $debug sed -i -e "s/define patchlevel $ORIGPLFILLED/define patchlevel $LASTPLFILLED/" $SPEC
    $debug sed -i -e "/\%changelog/a$CHLOG.$LASTPLFILLED-1\n- patchlevel $LASTPLFILLED\n" $SPEC
@@ -105,7 +110,7 @@ if [ $CHANGES -ne 0 ]; then
      | grep $releases_regexp`
 
    if [ "$pending_update" == "" ] && [ "$testing_update" == "" ]; then
-     fedpkg build
+     $debug fedpkg build
      if [ $? -eq 0 ]; then
        done_build=1
      else
@@ -117,6 +122,7 @@ if [ $CHANGES -ne 0 ]; then
    fi
 
    let "release_index+=1"
+   let "bodhi_enabled_index+=1"
 
    for branch in "${branches[@]:(1)}";
    do
@@ -144,20 +150,24 @@ if [ $CHANGES -ne 0 ]; then
        exit 1
      fi
 
-     # append next release to regexp
+     # append next release to regexp - because we need to check if there aren't
+     # any testing updates from higher branches (lower branch cannot have
+     # bigger NVR than higher branch) in next iteration
      releases_regexp="$releases_regexp${regexps[@]: regexp_index: 1}"
 
      # Check if release has pending or testing update - if not, build package
      # and submit update for testing
-     #pending_update=`bodhi updates query --packages vim --status pending \
      #  | grep $releases_regexp`
+     # done_build is checking, if previous branch did build - lower branch can do
+     # a build only when higher branch build was ok.
      testing_update=`bodhi updates query --packages vim --status testing \
        | grep $releases_regexp`
-     if [[ "$testing_update" == ""  &&  $done_build -eq 1 ]]; then
-       fedpkg build
+     if [ "$testing_update" == "" ] && [ $done_build -eq 1 ]; then
+       $debug fedpkg build
        if [ $? -eq 0 ]; then
-         if [ $branch != "master" ]; then
-           bodhi updates new --user zdohnal --type enhancement --notes "The newest upstream commit" --request testing --autokarma --stable-karma 3 --unstable-karma -3 vim-${UPSTREAMMAJOR}.${LASTPLFILLED}-1.${releases[@]: $release_index: 1}
+         # if branch isn't master or branch is enabled in bodhi, create update
+         if [ $branch != "master" ] || [ ${bodhi_enabled[@]: $bodhi_enabled_index: 1} -eq 1 ]; then
+           $debug bodhi updates new --user zdohnal --type enhancement --notes "The newest upstream commit" --request testing --autokarma --stable-karma 3 --unstable-karma -3 vim-${UPSTREAMMAJOR}.${LASTPLFILLED}-1.${releases[@]: $release_index: 1}
          fi
        else
          echo "Error when building package for $branch"
@@ -167,10 +177,11 @@ if [ $CHANGES -ne 0 ]; then
        done_build=0
      fi
 
-     # Increment index and cut the head of releases_regexp string
+     # Increment index
      let "branches_index+=1"
      let "release_index+=1"
      let "regexp_index+=1"
+     let "bodhi_enabled_index+=1"
    done
    #$debug git push
    #if [ $? -eq 0 ]; then

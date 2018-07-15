@@ -1,4 +1,4 @@
-%define patchlevel 1406
+%define patchlevel 0164
 %if %{?WITH_SELINUX:0}%{!?WITH_SELINUX:1}
 %define WITH_SELINUX 1
 %endif
@@ -17,8 +17,8 @@
 %define python3 python%{python3_pkgversion}
 %define python3path %{_includedir}/%{python3}
 
-%define baseversion 8.0
-%define vimdir vim80
+%define baseversion 8.1
+%define vimdir vim81
 
 Name:               vim
 Version:            %{baseversion}.%{patchlevel}
@@ -26,9 +26,9 @@ Release:            1%{?dist}
 Summary:            The VIM editor
 Group:              Applications/Editors
 License:            Vim
-URL:                http://www.vim.org/
+URL:                https://www.vim.org/
 
-Source0:            ftp://ftp.vim.org/pub/vim/unix/vim-%{baseversion}-%{patchlevel}.tar.bz2
+Source0:            ftp://ftp.vim.org/pub/vim/unix/vim-%{baseversion}.%{patchlevel}.tar.bz2
 Source1:            vim.sh
 Source2:            vim.csh
 Source4:            virc
@@ -67,8 +67,12 @@ Patch3012:          vim-7.4-licensemacro-1151450.patch
 Patch3013:          vim-7.4-globalsyntax.patch
 Patch3014:          vim-7.4-releasestring-1318991.patch
 Patch3016:          vim-8.0-copy-paste.patch
+# migrate shebangs in script to /usr/bin/python3 and use python2 when necessary
+Patch3017:          vim-python3-tests.patch
 
 BuildRoot:          %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+# gcc is no longer in buildroot by default
+BuildRequires:      gcc
 BuildRequires:      python2-devel python%{python3_pkgversion}-devel ncurses-devel gettext perl-devel
 BuildRequires:      perl-generators
 BuildRequires:      perl(ExtUtils::Embed) perl(ExtUtils::ParseXS)
@@ -102,12 +106,9 @@ multiple windows, multi-level undo, block highlighting and more.
 
 %package common
 Summary:            The common files needed by any version of the VIM editor
-Group:              Applications/Editors
 Conflicts:          man-pages-fr < 0.9.7-14
 Conflicts:          man-pages-it < 0.3.0-17
 Conflicts:          man-pages-pl < 0.24-2
-# Because of conflicting man pages
-Conflicts:          %{name}-minimal < %{version}-%{release}
 Requires:           %{name}-filesystem
 
 %description common
@@ -127,7 +128,6 @@ to install the vim-common package.
 
 %package spell
 Summary:            The dictionaries for spell checking. This package is optional
-Group:              Applications/Editors
 Requires:           vim-common = %{epoch}:%{version}-%{release}
 
 %description spell
@@ -140,11 +140,8 @@ many different languages.
 
 %package minimal
 Summary:            A minimal version of the VIM editor
-Group:              Applications/Editors
-# Because of conflicting manpages
-Conflicts:          %{name}-common < %{version}-%{release}
 Provides:           vi = %{version}-%{release}
-Provides:           /bin/vi
+Provides:           %{_bindir}/vi
 
 %description minimal
 VIM (VIsual editor iMproved) is an updated and improved version of the
@@ -162,11 +159,21 @@ package is installed.
 
 %package enhanced
 Summary:            A version of the VIM editor which includes recent enhancements
-Group:              Applications/Editors
 Requires:           vim-common = %{epoch}:%{version}-%{release} which
 Provides:           vim = %{version}-%{release}
-Provides:           mergetool
-Requires:           perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
+Provides:           %{_bindir}/mergetool
+Provides:           %{_bindir}/vim
+# suggest python3, python2, lua, ruby and perl packages because of their 
+# embedded functionality in Vim/GVim
+Suggests:           python2 python2-libs 
+Suggests:           python3 python3-libs
+Suggests:           perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version)) perl-libs perl-devel
+%if "%{withruby}" == "1"
+Suggests:           ruby-libs ruby
+%endif
+%if "%{withlua}" == "1"
+Suggests:           lua-libs
+%endif
 
 %description enhanced
 VIM (VIsual editor iMproved) is an updated and improved version of the
@@ -187,7 +194,7 @@ need to install the vim-common package.
 
 %package filesystem
 Summary:            VIM filesystem layout
-Group:              Applications/Editors
+BuildArch: noarch
 
 %Description filesystem
 This package provides some directories which are required by other
@@ -199,13 +206,23 @@ packages that add vim files, p.e.  additional syntax files or filetypes.
 
 %package X11
 Summary:            The VIM version of the vi editor for the X Window System - GVim
-Group:              Applications/Editors
 Requires:           vim-common = %{epoch}:%{version}-%{release} libattr >= 2.4 gtk3 
 Provides:           gvim = %{version}-%{release}
-Provides:           mergetool
+Provides:           %{_bindir}/mergetool
+Provides:           %{_bindir}/gvim
 BuildRequires:      gtk3-devel libSM-devel libXt-devel libXpm-devel libappstream-glib
-Requires:           perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
 Requires:           hicolor-icon-theme
+# suggest python3, python2, lua, ruby and perl packages because of their 
+# embedded functionality in Vim/GVim
+Suggests:           python2 python2-libs 
+Suggests:           python3 python3-libs
+Suggests:           perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version)) perl-libs perl-devel
+%if "%{withruby}" == "1"
+Suggests:           ruby-libs ruby
+%endif
+%if "%{withlua}" == "1"
+Suggests:           lua-libs
+%endif
 
 %description X11
 VIM (VIsual editor iMproved) is an updated and improved version of the
@@ -253,8 +270,13 @@ perl -pi -e "s,bin/nawk,bin/awk,g" runtime/tools/mve.awk
 %patch3013 -p1
 %patch3014 -p1
 %patch3016 -p1
+%patch3017 -p1
 
 %build
+%if 0%{?rhel} > 7
+export RHEL_ALLOW_PYTHON2_FOR_BUILD=1
+%endif
+
 cd src
 autoconf
 
@@ -361,11 +383,10 @@ make VIMRCLOC=/etc VIMRUNTIMEDIR=/usr/share/vim/%{vimdir} %{?_smp_mflags}
 cp vim enhanced-vim
 
 %install
-rm -rf %{buildroot}
 mkdir -p %{buildroot}/%{_bindir}
 mkdir -p %{buildroot}/%{_datadir}/%{name}/vimfiles/{after,autoload,colors,compiler,doc,ftdetect,ftplugin,indent,keymap,lang,plugin,print,spell,syntax,tutor}
 mkdir -p %{buildroot}/%{_datadir}/%{name}/vimfiles/after/{autoload,colors,compiler,doc,ftdetect,ftplugin,indent,keymap,lang,plugin,print,spell,syntax,tutor}
-#cp -f %{SOURCE11} .
+cp -f %{SOURCE11} .
 %if %{?fedora}%{!?fedora:0} >= 16 || %{?rhel}%{!?rhel:0} >= 6
 cp -f %{SOURCE15} %{buildroot}/%{_datadir}/%{name}/vimfiles/template.spec
 %else
@@ -401,8 +422,8 @@ install -p -m644 %{SOURCE10} \
 #
 # See http://www.freedesktop.org/software/appstream/docs/ for more details.
 #
-mkdir -p $RPM_BUILD_ROOT%{_datadir}/appdata
-cat > $RPM_BUILD_ROOT%{_datadir}/appdata/gvim.appdata.xml <<EOF
+mkdir -p $RPM_BUILD_ROOT%{_datadir}/metainfo
+cat > $RPM_BUILD_ROOT%{_datadir}/metainfo/gvim.appdata.xml <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Copyright 2014 Richard Hughes <richard@hughsie.com> -->
 <!--
@@ -446,8 +467,8 @@ EOF
   ln -sf vim ./%{_bindir}/vimdiff
   perl -pi -e "s,%{buildroot},," .%{_mandir}/man1/vim.1 .%{_mandir}/man1/vimtutor.1
   rm -f .%{_mandir}/man1/rvim.1
-  ln -sf vim.1.gz .%{_mandir}/man1/vi.1.gz
-  ln -sf vim.1.gz .%{_mandir}/man1/rvi.1.gz
+  cp -p .%{_mandir}/man1/vim.1 .%{_mandir}/man1/vi.1
+  ln -sf vi.1.gz .%{_mandir}/man1/rvi.1.gz
   ln -sf vim.1.gz .%{_mandir}/man1/vimdiff.1.gz
   ln -sf gvim ./%{_bindir}/gview
   ln -sf gvim ./%{_bindir}/gex
@@ -472,7 +493,7 @@ EOF
     ln -sf menu_ja_jp.ujis.vim menu_ja_jp.eucjp.vim )
 )
 
-appstream-util validate-relax --nonet %{buildroot}/%{_datadir}/appdata/*.appdata.xml
+appstream-util validate-relax --nonet %{buildroot}/%{_datadir}/metainfo/*.appdata.xml
 
 pushd %{buildroot}/%{_datadir}/%{name}/%{vimdir}/tutor
 mkdir conv
@@ -492,7 +513,7 @@ mkdir conv
    iconv -f ISO-8859-2 -t UTF8 tutor.sk > conv/tutor.sk
    iconv -f KOI8R -t UTF8 tutor.ru > conv/tutor.ru
    iconv -f CP1252 -t UTF8 tutor.sv > conv/tutor.sv
-   mv -f tutor.ja.euc tutor.ja.sjis tutor.ko.euc tutor.pl.cp1250 tutor.zh.big5 tutor.ru.cp1251 tutor.zh.euc conv/
+   mv -f tutor.ja.euc tutor.ja.sjis tutor.ko.euc tutor.pl.cp1250 tutor.zh.big5 tutor.ru.cp1251 tutor.zh.euc tutor.sr.cp1250 tutor.sr.utf-8 conv/
    rm -f tutor.ca tutor.de tutor.es tutor.fr tutor.gr tutor.it tutor.ja.utf-8 tutor.ko.utf-8 tutor.no tutor.pl tutor.sk tutor.ru tutor.sv
 mv -f conv/* .
 rmdir conv
@@ -511,7 +532,6 @@ chmod 0644 %{buildroot}/%{_sysconfdir}/profile.d/vim.*
 install -p -m644 %{SOURCE4} %{buildroot}/%{_sysconfdir}/virc
 install -p -m644 %{SOURCE5} %{buildroot}/%{_sysconfdir}/vimrc
 
-mkdir -p %{buildroot}%{_libdir}/%{name}
 mkdir -p %{buildroot}%{_rpmconfigdir}/macros.d/
 install -p -m644 %{SOURCE16} %{buildroot}%{_rpmconfigdir}/macros.d/
 
@@ -550,24 +570,9 @@ done
 echo ".so man1/vimdiff.1" > %{buildroot}/%{_mandir}/man1/gvimdiff.1
 echo ".so man1/vimtutor.1" > %{buildroot}/%{_mandir}/man1/gvimtutor.1
 mkdir -p %{buildroot}/%{_mandir}/man5
-for i in virc.5 vimrc.5; do 
-  echo ".so man1/vim.1" > %{buildroot}/%{_mandir}/man5/$i
-done
+echo ".so man1/vim.1" > %{buildroot}/%{_mandir}/man5/vimrc.5
+echo ".so man1/vi.1" > %{buildroot}/%{_mandir}/man5/virc.5
 touch %{buildroot}/%{_datadir}/%{name}/vimfiles/doc/tags
-
-%post X11
-touch --no-create %{_datadir}/icons/hicolor
-if [ -x /%{_bindir}/gtk-update-icon-cache ]; then
-  gtk-update-icon-cache --ignore-theme-index -q %{_datadir}/icons/hicolor
-fi
-update-desktop-database &> /dev/null ||:
-
-%postun X11
-touch --no-create %{_datadir}/icons/hicolor
-if [ -x /%{_bindir}/gtk-update-icon-cache ]; then
-  gtk-update-icon-cache --ignore-theme-index -q %{_datadir}/icons/hicolor
-fi
-update-desktop-database &> /dev/null ||:
 
 # Refresh documentation helptags
 %transfiletriggerin common -- %{_datadir}/%{name}/vimfiles/doc
@@ -578,7 +583,6 @@ update-desktop-database &> /dev/null ||:
 %{_bindir}/vim -c ":helptags %{_datadir}/%{name}/vimfiles/doc" -c :q &> /dev/null || :
 
 %files common
-%defattr(-,root,root)
 %config(noreplace) %{_sysconfdir}/vimrc
 %{!?_licensedir:%global license %%doc}
 %license LICENSE
@@ -613,6 +617,7 @@ update-desktop-database &> /dev/null ||:
 %lang(ca) %{_datadir}/%{name}/%{vimdir}/lang/ca
 %lang(cs) %{_datadir}/%{name}/%{vimdir}/lang/cs
 %lang(cs.cp1250) %{_datadir}/%{name}/%{vimdir}/lang/cs.cp1250
+%lang(da) %{_datadir}/%{name}/%{vimdir}/lang/da
 %lang(de) %{_datadir}/%{name}/%{vimdir}/lang/de
 %lang(en_GB) %{_datadir}/%{name}/%{vimdir}/lang/en_GB
 %lang(eo) %{_datadir}/%{name}/%{vimdir}/lang/eo
@@ -638,6 +643,7 @@ update-desktop-database &> /dev/null ||:
 %lang(ru.cp1251) %{_datadir}/%{name}/%{vimdir}/lang/ru.cp1251
 %lang(sk) %{_datadir}/%{name}/%{vimdir}/lang/sk
 %lang(sk.cp1250) %{_datadir}/%{name}/%{vimdir}/lang/sk.cp1250
+%lang(sr) %{_datadir}/%{name}/%{vimdir}/lang/sr
 %lang(sv) %{_datadir}/%{name}/%{vimdir}/lang/sv
 %lang(uk) %{_datadir}/%{name}/%{vimdir}/lang/uk
 %lang(uk.cp1251) %{_datadir}/%{name}/%{vimdir}/lang/uk.cp1251
@@ -648,15 +654,10 @@ update-desktop-database &> /dev/null ||:
 %lang(zh_CN.UTF-8) %{_datadir}/%{name}/%{vimdir}/lang/zh_CN.UTF-8
 %lang(zh_TW.UTF-8) %{_datadir}/%{name}/%{vimdir}/lang/zh_TW.UTF-8
 /%{_bindir}/xxd
-%{_mandir}/man1/ex.*
 %{_mandir}/man1/gex.*
 %{_mandir}/man1/gview.*
 %{_mandir}/man1/gvim*
-%{_mandir}/man1/rvi.*
-%{_mandir}/man1/rview.*
 %{_mandir}/man1/rvim.*
-%{_mandir}/man1/vi.*
-%{_mandir}/man1/view.*
 %{_mandir}/man1/vim.*
 %{_mandir}/man1/vimdiff.*
 %{_mandir}/man1/vimtutor.*
@@ -671,7 +672,6 @@ update-desktop-database &> /dev/null ||:
 
 %if %{withvimspell}
 %files spell
-%defattr(-,root,root)
 %dir %{_datadir}/%{name}/%{vimdir}/spell
 %{_datadir}/%{name}/vim70/spell/cleanadd.vim
 %lang(af) %{_datadir}/%{name}/%{vimdir}/spell/af.*
@@ -714,6 +714,7 @@ update-desktop-database &> /dev/null ||:
 %lang(rw) %{_datadir}/%{name}/%{vimdir}/spell/rw.*
 %lang(sk) %{_datadir}/%{name}/%{vimdir}/spell/sk.*
 %lang(sl) %{_datadir}/%{name}/%{vimdir}/spell/sl.*
+%lang(sr) %{_datadir}/%{name}/%{vimdir}/spell/sr.*
 %lang(sv) %{_datadir}/%{name}/%{vimdir}/spell/sv.*
 %lang(sw) %{_datadir}/%{name}/%{vimdir}/spell/sw.*
 %lang(tet) %{_datadir}/%{name}/%{vimdir}/spell/tet.*
@@ -727,14 +728,12 @@ update-desktop-database &> /dev/null ||:
 %endif
 
 %files minimal
-%defattr(-,root,root)
 %config(noreplace) %{_sysconfdir}/virc
 %{_bindir}/ex
 %{_bindir}/vi
 %{_bindir}/view
 %{_bindir}/rvi
 %{_bindir}/rview
-%{_mandir}/man1/vim.*
 %{_mandir}/man1/vi.*
 %{_mandir}/man1/ex.*
 %{_mandir}/man1/rvi.*
@@ -743,7 +742,6 @@ update-desktop-database &> /dev/null ||:
 %{_mandir}/man5/virc.*
 
 %files enhanced
-%defattr(-,root,root)
 %{_bindir}/vim
 %{_bindir}/rvim
 %{_bindir}/vimdiff
@@ -751,9 +749,7 @@ update-desktop-database &> /dev/null ||:
 %config(noreplace) %{_sysconfdir}/profile.d/vim.*
 
 %files filesystem
-%defattr(-,root,root)
 %{_rpmconfigdir}/macros.d/macros.vim
-%dir %{_libdir}/%{name}
 %dir %{_datadir}/%{name}/vimfiles
 %dir %{_datadir}/%{name}/vimfiles/after
 %dir %{_datadir}/%{name}/vimfiles/after/*
@@ -774,9 +770,8 @@ update-desktop-database &> /dev/null ||:
 %dir %{_datadir}/%{name}/vimfiles/tutor
 
 %files X11
-%defattr(-,root,root)
 %if "%{desktop_file}" == "1"
-%{_datadir}/appdata/*.appdata.xml
+%{_datadir}/metainfo/*.appdata.xml
 /%{_datadir}/applications/*
 %exclude /%{_datadir}/applications/vim.desktop
 %else
@@ -795,6 +790,250 @@ update-desktop-database &> /dev/null ||:
 %{_datadir}/icons/locolor/*/apps/*
 
 %changelog
+* Fri Jul 06 2018 Petr Pisar <ppisar@redhat.com> - 2:8.1.119-5
+- Perl 5.28 rebuild
+
+* Wed Jul 04 2018 Ondřej Lysoněk <olysonek@redhat.com> - 2:8.1.119-4
+- Backport patch 8.1.0121: crash when using ballooneval related to 'vartabstop'
+- Resolves: rhbz#1597842
+
+* Tue Jul 03 2018 Petr Pisar <ppisar@redhat.com> - 2:8.1.119-3
+- Perl 5.28 rebuild
+
+* Mon Jul 02 2018 Miro Hrončok <mhroncok@redhat.com> - 2:8.1.119-2
+- Rebuilt for Python 3.7
+
+* Thu Jun 28 2018 Karsten Hopp <karsten@redhat.com> 8.1.119-1
+- patchlevel 119
+
+* Thu Jun 28 2018 Jitka Plesnikova <jplesnik@redhat.com> - 2:8.1.117-2
+- Perl 5.28 rebuild
+
+* Wed Jun 27 2018 Karsten Hopp <karsten@redhat.com> 8.1.117-1
+- patchlevel 117
+
+* Mon Jun 25 2018 Karsten Hopp <karsten@redhat.com> 8.1.115-1
+- patchlevel 115
+
+* Fri Jun 22 2018 Karsten Hopp <karsten@redhat.com> 8.1.095-1
+- patchlevel 095
+
+* Tue Jun 19 2018 Miro Hrončok <mhroncok@redhat.com> - 2:8.1.072-2
+- Rebuilt for Python 3.7
+
+* Mon Jun 18 2018 Karsten Hopp <karsten@redhat.com> 8.1.072-1
+- patchlevel 072
+
+* Fri Jun 15 2018 Karsten Hopp <karsten@redhat.com> 8.1.055-1
+- patchlevel 055
+
+* Mon Jun 11 2018 Karsten Hopp <karsten@redhat.com> 8.1.042-1
+- patchlevel 042
+
+* Fri Jun 08 2018 Karsten Hopp <karsten@redhat.com> 8.1.039-1
+- patchlevel 039
+
+* Wed Jun 06 2018 Karsten Hopp <karsten@redhat.com> 8.1.035-1
+- patchlevel 035
+
+* Tue Jun 05 2018 Karsten Hopp <karsten@redhat.com> 8.1.034-1
+- patchlevel 034
+
+* Mon May 28 2018 Karsten Hopp <karsten@redhat.com> 8.1.026-1
+- patchlevel 026
+
+* Thu May 24 2018 Karsten Hopp <karsten@redhat.com> 8.1.022-1
+- patchlevel 022
+
+* Wed May 23 2018 Karsten Hopp <karsten@redhat.com> 8.1.020-1
+- patchlevel 020
+
+* Tue May 22 2018 Karsten Hopp <karsten@redhat.com> 8.1.016-1
+- patchlevel 016
+
+* Mon May 21 2018 Karsten Hopp <karsten@redhat.com> 8.1.010-1
+- patchlevel 010
+
+* Fri May 18 2018 Karsten Hopp <karsten@redhat.com> 8.1.001-1
+- patchlevel 001
+
+* Fri May 18 2018 Zdenek Dohnal <zdohnal@redhat.com> - 8.0.1848-2
+- vim-update.sh - update vimdir and baseversion(for major rebases)
+- vim-update.sh - enhance debugging of vim-update script
+
+* Thu May 17 2018 Karsten Hopp <karsten@redhat.com> 8.0.1848-1
+- patchlevel 1848
+
+* Tue May 15 2018 Zdenek Dohnal <zdohnal@redhat.com> - 8.0.1842-2
+- do not update F26 anymore - EOL in 2 weeks
+
+* Tue May 15 2018 Karsten Hopp <karsten@redhat.com> 8.0.1842-1
+- patchlevel 1842
+
+* Tue May 15 2018 Zdenek Dohnal <zdohnal@redhat.com> - 8.0.1813-2
+- use environment variable in build phase
+
+* Fri May 11 2018 Karsten Hopp <karsten@redhat.com> 8.0.1813-1
+- patchlevel 1813
+
+* Fri May 11 2018 Zdenek Dohnal <zdohnal@redhat.com> - 8.0.1806-2
+- use python2 and python3 in code
+
+* Thu May 10 2018 Karsten Hopp <karsten@redhat.com> 8.0.1806-1
+- patchlevel 1806
+
+* Wed May 09 2018 Zdenek Dohnal <zdohnal@redhat.com> - 8.0.1789-2
+- 1575354 - suggest more packages for embedded interpreters
+
+* Fri May 04 2018 Karsten Hopp <karsten@redhat.com> 8.0.1789-1
+- patchlevel 1789
+
+* Thu May 03 2018 Karsten Hopp <karsten@redhat.com> 8.0.1788-1
+- patchlevel 1788
+
+* Wed May 02 2018 Karsten Hopp <karsten@redhat.com> 8.0.1787-1
+- patchlevel 1787
+
+* Fri Apr 27 2018 Karsten Hopp <karsten@redhat.com> 8.0.1766-1
+- patchlevel 1766
+
+* Thu Apr 26 2018 Karsten Hopp <karsten@redhat.com> 8.0.1765-1
+- patchlevel 1765
+
+* Wed Apr 25 2018 Karsten Hopp <karsten@redhat.com> 8.0.1763-1
+- patchlevel 1763
+
+* Tue Apr 24 2018 Karsten Hopp <karsten@redhat.com> 8.0.1755-1
+- patchlevel 1755
+
+* Fri Apr 13 2018 Karsten Hopp <karsten@redhat.com> 8.0.1704-1
+- patchlevel 1704
+
+* Mon Apr 09 2018 Karsten Hopp <karsten@redhat.com> 8.0.1679-1
+- patchlevel 1679
+
+* Fri Apr 06 2018 Zdenek Dohnal <zdohnal@redhat.com> - 8.0.1666-2
+- suggests ruby-libs, python2-libs, python3-libs, perl-libs and lua-libs for vim and gvim(bug #1562057)
+
+* Fri Apr 06 2018 Karsten Hopp <karsten@redhat.com> 8.0.1666-1
+- patchlevel 1666
+
+* Thu Apr 05 2018 Karsten Hopp <karsten@redhat.com> 8.0.1661-1
+- patchlevel 1661
+
+* Fri Mar 23 2018 Karsten Hopp <karsten@redhat.com> 8.0.1630-1
+- patchlevel 1630
+
+* Thu Mar 22 2018 Karsten Hopp <karsten@redhat.com> 8.0.1626-1
+- patchlevel 1626
+
+* Wed Mar 21 2018 Karsten Hopp <karsten@redhat.com> 8.0.1625-1
+- patchlevel 1625
+
+* Wed Mar 14 2018 Karsten Hopp <karsten@redhat.com> 8.0.1605-1
+- patchlevel 1605
+
+* Tue Mar 13 2018 Karsten Hopp <karsten@redhat.com> 8.0.1603-1
+- patchlevel 1603
+
+* Mon Mar 12 2018 Karsten Hopp <karsten@redhat.com> 8.0.1599-1
+- patchlevel 1599
+
+* Fri Mar 09 2018 Karsten Hopp <karsten@redhat.com> 8.0.1591-1
+- patchlevel 1591
+
+* Thu Mar 08 2018 Karsten Hopp <karsten@redhat.com> 8.0.1589-1
+- patchlevel 1589
+
+* Wed Mar 07 2018 Karsten Hopp <karsten@redhat.com> 8.0.1587-1
+- patchlevel 1587
+
+* Tue Mar 06 2018 Zdenek Dohnal <zdohnal@redhat.com> - 2:8.0.1573-2
+- vim-update.sh - unify if condition style
+
+* Tue Mar 06 2018 Karsten Hopp <karsten@redhat.com> 8.0.1573-1
+- patchlevel 1573
+
+* Tue Mar 06 2018 Zdenek Dohnal <zdohnal@redhat.com> - 2:8.0.1569-2
+- update spec
+- f28 got enabled in bodhi
+
+* Mon Mar 05 2018 Karsten Hopp <karsten@redhat.com> 8.0.1569-1
+- patchlevel 1569
+
+* Wed Feb 28 2018 Karsten Hopp <karsten@redhat.com> 8.0.1553-1
+- added Serbian localization files
+- patchlevel 1553
+
+* Wed Feb 28 2018 Zdenek Dohnal <zdohnal@redhat.com> - 2:8.0.1543-2
+- fix vim-update.sh - bodhi update wasn't created
+
+* Tue Feb 27 2018 Karsten Hopp <karsten@redhat.com> 8.0.1543-1
+- patchlevel 1543
+
+* Mon Feb 26 2018 Zdenek Dohnal <zdohnal@redhat.com> - 8.0.1527-3
+- add Provides for vim, gvim and correcting paths to /usr/bin
+
+* Wed Feb 21 2018 Zdenek Dohnal <zdohnal@redhat.com> - 8.0.1527-2
+- adapt vim-update.sh for Fedora 28 and adding check for bodhi enablement
+
+* Tue Feb 20 2018 Karsten Hopp <karsten@redhat.com> 8.0.1527-1
+- patchlevel 1527
+
+* Mon Feb 19 2018 Zdenek Dohnal <zdohnal@redhat.com> - 8.0.1523-2
+- gcc is no longer in buildroot by default
+- 1546116 - make vim-filesystem noarch package
+- remove %%{_libdir}/vim, because it is unused
+
+* Mon Feb 19 2018 Karsten Hopp <karsten@redhat.com> 8.0.1523-1
+- patchlevel 1523
+
+* Wed Feb 14 2018 Karsten Hopp <karsten@redhat.com> 8.0.1520-1
+- patchlevel 1520
+
+* Tue Feb 13 2018 Karsten Hopp <karsten@redhat.com> 8.0.1509-1
+- patchlevel 1509
+
+* Mon Feb 12 2018 Karsten Hopp <karsten@redhat.com> 8.0.1505-1
+- patchlevel 1505
+
+* Fri Feb 09 2018 Karsten Hopp <karsten@redhat.com> 8.0.1478-1
+- patchlevel 1478
+
+* Thu Feb 08 2018 Zdenek Dohnal <zdohnal@redhat.com> - 8.0.1475-2
+- remove old stuff
+
+* Wed Feb 07 2018 Karsten Hopp <karsten@redhat.com> 8.0.1475-1
+- patchlevel 1475
+
+* Mon Feb 05 2018 Karsten Hopp <karsten@redhat.com> 8.0.1473-1
+- patchlevel 1473
+
+* Thu Feb 01 2018 Karsten Hopp <karsten@redhat.com> 8.0.1451-1
+- patchlevel 1451
+
+* Mon Jan 29 2018 Karsten Hopp <karsten@redhat.com> 8.0.1438-1
+- patchlevel 1438
+
+* Tue Jan 23 2018 Zdenek Dohnal <zdohnal@redhat.com> - 8.0.1428-4
+- throw vim.1.gz out from vim-minimal and other manpages from vim-common
+- appdata should be in metainfo folder now
+
+* Fri Jan 19 2018 Zdenek Dohnal <zdohnal@redhat.com> - 8.0.1428-3
+- 1525506 - gvim goes into infinite loop when blink_state is OFF
+
+* Fri Jan 12 2018 Zdenek Dohnal <zdohnal@redhat.com> - 8.0.1428-2
+- removing old icon cache update
+
+* Wed Jan 03 2018 Karsten Hopp <karsten@redhat.com> 8.0.1428-1
+- patchlevel 1428
+
+* Tue Jan 02 2018 Karsten Hopp <karsten@redhat.com> 8.0.1427-1
+- patchlevel 1427
+
+* Tue Dec 19 2017 Karsten Hopp <karsten@redhat.com> 8.0.1406-1
+- patchlevel 1406
+
 * Mon Dec 18 2017 Kitsune Solar <kitsune.solar@gmail.com> - 8.0.1406-1
 - Build from RHEL7
 - PatchLevel 1405
