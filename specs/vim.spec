@@ -20,79 +20,79 @@
 %define baseversion 8.1
 %define vimdir vim81
 
-Name:               vim
-Version:            %{baseversion}.%{patchlevel}
-Release:            1%{?dist}
-Summary:            The VIM editor
-Group:              Applications/Editors
-License:            Vim
-URL:                https://www.vim.org/
+Name:                   vim
+Version:                %{baseversion}.%{patchlevel}
+Release:                1%{?dist}
+Summary:                The VIM editor
+Group:                  Applications/Editors
+License:                Vim
+URL:                    https://www.vim.org/
 
-Source0:            ftp://ftp.vim.org/pub/vim/unix/vim-%{baseversion}.%{patchlevel}.tar.bz2
-Source1:            vim.sh
-Source2:            vim.csh
-Source4:            virc
-Source5:            vimrc
-Source7:            gvim16.png
-Source8:            gvim32.png
-Source9:            gvim48.png
-Source10:           gvim64.png
-#Source11:          Changelog.rpm
+Source0:                ftp://ftp.vim.org/pub/vim/unix/vim-%{baseversion}.%{patchlevel}.tar.bz2
+Source1:                vim.sh
+Source2:                vim.csh
+Source4:                virc
+Source5:                vimrc
+Source7:                gvim16.png
+Source8:                gvim32.png
+Source9:                gvim48.png
+Source10:               gvim64.png
+#Source11:              Changelog.rpm
 %if %{withvimspell}
-Source13:           vim-spell-files.tar.bz2
+Source13:               vim-spell-files.tar.bz2
 %endif
-Source14:           spec-template
-Source15:           spec-template.new
-Source16:           macros.vim
-#Source17:          ftplugin-spec.vim
-#Source18:          syntax-spec.vim
+Source14:               spec-template
+Source15:               spec-template.new
+Source16:               macros.vim
+#Source17:              ftplugin-spec.vim
+#Source18:              syntax-spec.vim
 
-Patch2002:          vim-7.0-fixkeys.patch
-Patch2003:          vim-7.4-specsyntax.patch
+Patch2002:              vim-7.0-fixkeys.patch
+Patch2003:              vim-7.4-specsyntax.patch
 %if %{withhunspell}
-Patch2011:          vim-7.0-hunspell.patch
-BuildRequires:      hunspell-devel
+Patch2011:              vim-7.0-hunspell.patch
+BuildRequires:          hunspell-devel
 %endif
 
-Patch3000:          vim-7.4-syntax.patch
-Patch3002:          vim-7.4-nowarnings.patch
-Patch3004:          vim-7.0-rclocation.patch
-Patch3006:          vim-7.4-checkhl.patch
-Patch3007:          vim-7.4-fstabsyntax.patch
-Patch3008:          vim-7.4-syncolor.patch
-Patch3009:          vim-7.0-specedit.patch
-Patch3010:          vim-7.3-manpage-typo-668894-675480.patch
-Patch3011:          vim-manpagefixes-948566.patch
-Patch3012:          vim-7.4-licensemacro-1151450.patch
-Patch3013:          vim-7.4-globalsyntax.patch
-Patch3014:          vim-7.4-releasestring-1318991.patch
-Patch3016:          vim-8.0-copy-paste.patch
+Patch3000:              vim-7.4-syntax.patch
+Patch3002:              vim-7.4-nowarnings.patch
+Patch3004:              vim-7.0-rclocation.patch
+Patch3006:              vim-7.4-checkhl.patch
+Patch3007:              vim-7.4-fstabsyntax.patch
+Patch3008:              vim-7.4-syncolor.patch
+Patch3009:              vim-7.0-specedit.patch
+Patch3010:              vim-7.3-manpage-typo-668894-675480.patch
+Patch3011:              vim-manpagefixes-948566.patch
+Patch3012:              vim-7.4-licensemacro-1151450.patch
+Patch3013:              vim-7.4-globalsyntax.patch
+Patch3014:              vim-7.4-releasestring-1318991.patch
+Patch3016:              vim-8.0-copy-paste.patch
 # migrate shebangs in script to /usr/bin/python3 and use python2 when necessary
-Patch3017:          vim-python3-tests.patch
+Patch3017:              vim-python3-tests.patch
 
-BuildRoot:          %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+BuildRoot:              %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 # gcc is no longer in buildroot by default
-BuildRequires:      gcc
-BuildRequires:      python2-devel python%{python3_pkgversion}-devel ncurses-devel gettext perl-devel
-BuildRequires:      perl-generators
-BuildRequires:      perl(ExtUtils::Embed) perl(ExtUtils::ParseXS)
-BuildRequires:      libacl-devel gpm-devel autoconf file
+BuildRequires:          gcc
+BuildRequires:          python2-devel python%{python3_pkgversion}-devel ncurses-devel gettext perl-devel
+BuildRequires:          perl-generators
+BuildRequires:          perl(ExtUtils::Embed) perl(ExtUtils::ParseXS)
+BuildRequires:          libacl-devel gpm-devel autoconf file
 %if %{WITH_SELINUX}
-BuildRequires:      libselinux-devel
+BuildRequires:          libselinux-devel
 %endif
 %if "%{withruby}" == "1"
-BuildRequires:      ruby-devel ruby
+BuildRequires:          ruby-devel ruby
 %endif
 %if "%{withlua}" == "1"
-BuildRequires:      lua-devel
+BuildRequires:          lua-devel
 %endif
 %if %{desktop_file}
 # for /usr/bin/desktop-file-install
-Requires:           desktop-file-utils
-BuildRequires:      desktop-file-utils >= %{desktop_file_utils_version}
+Requires:               desktop-file-utils
+BuildRequires:          desktop-file-utils >= %{desktop_file_utils_version}
 %endif
-Epoch:              2
-Conflicts:          filesystem < 3
+Epoch:                  2
+Conflicts:              filesystem < 3
 
 %description
 VIM (VIsual editor iMproved) is an updated and improved version of the
@@ -105,11 +105,11 @@ multiple windows, multi-level undo, block highlighting and more.
 # -------------------------------------------------------------------------------------------------------------------- #
 
 %package common
-Summary:            The common files needed by any version of the VIM editor
-Conflicts:          man-pages-fr < 0.9.7-14
-Conflicts:          man-pages-it < 0.3.0-17
-Conflicts:          man-pages-pl < 0.24-2
-Requires:           %{name}-filesystem
+Summary:                The common files needed by any version of the VIM editor
+Conflicts:              man-pages-fr < 0.9.7-14
+Conflicts:              man-pages-it < 0.3.0-17
+Conflicts:              man-pages-pl < 0.24-2
+Requires:               %{name}-filesystem
 
 %description common
 VIM (VIsual editor iMproved) is an updated and improved version of the
@@ -127,8 +127,8 @@ to install the vim-common package.
 # -------------------------------------------------------------------------------------------------------------------- #
 
 %package spell
-Summary:            The dictionaries for spell checking. This package is optional
-Requires:           vim-common = %{epoch}:%{version}-%{release}
+Summary:                The dictionaries for spell checking. This package is optional
+Requires:               vim-common = %{epoch}:%{version}-%{release}
 
 %description spell
 This subpackage contains dictionaries for vim spell checking in
@@ -139,9 +139,9 @@ many different languages.
 # -------------------------------------------------------------------------------------------------------------------- #
 
 %package minimal
-Summary:            A minimal version of the VIM editor
-Provides:           vi = %{version}-%{release}
-Provides:           %{_bindir}/vi
+Summary:                A minimal version of the VIM editor
+Provides:               vi = %{version}-%{release}
+Provides:               %{_bindir}/vi
 
 %description minimal
 VIM (VIsual editor iMproved) is an updated and improved version of the
@@ -158,21 +158,21 @@ package is installed.
 # -------------------------------------------------------------------------------------------------------------------- #
 
 %package enhanced
-Summary:            A version of the VIM editor which includes recent enhancements
-Requires:           vim-common = %{epoch}:%{version}-%{release} which
-Provides:           vim = %{version}-%{release}
-Provides:           %{_bindir}/mergetool
-Provides:           %{_bindir}/vim
-# suggest python3, python2, lua, ruby and perl packages because of their 
+Summary:                A version of the VIM editor which includes recent enhancements
+Requires:               vim-common = %{epoch}:%{version}-%{release} which
+Provides:               vim = %{version}-%{release}
+Provides:               %{_bindir}/mergetool
+Provides:               %{_bindir}/vim
+# suggest python3, python2, lua, ruby and perl packages because of their
 # embedded functionality in Vim/GVim
-Suggests:           python2 python2-libs 
-Suggests:           python3 python3-libs
-Suggests:           perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version)) perl-libs perl-devel
+Suggests:               python2 python2-libs
+Suggests:               python3 python3-libs
+Suggests:               perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version)) perl-libs perl-devel
 %if "%{withruby}" == "1"
-Suggests:           ruby-libs ruby
+Suggests:               ruby-libs ruby
 %endif
 %if "%{withlua}" == "1"
-Suggests:           lua-libs
+Suggests:               lua-libs
 %endif
 
 %description enhanced
@@ -193,7 +193,7 @@ need to install the vim-common package.
 # -------------------------------------------------------------------------------------------------------------------- #
 
 %package filesystem
-Summary:            VIM filesystem layout
+Summary:                VIM filesystem layout
 BuildArch: noarch
 
 %Description filesystem
@@ -205,23 +205,23 @@ packages that add vim files, p.e.  additional syntax files or filetypes.
 # -------------------------------------------------------------------------------------------------------------------- #
 
 %package X11
-Summary:            The VIM version of the vi editor for the X Window System - GVim
-Requires:           vim-common = %{epoch}:%{version}-%{release} libattr >= 2.4 gtk3 
-Provides:           gvim = %{version}-%{release}
-Provides:           %{_bindir}/mergetool
-Provides:           %{_bindir}/gvim
-BuildRequires:      gtk3-devel libSM-devel libXt-devel libXpm-devel libappstream-glib
-Requires:           hicolor-icon-theme
-# suggest python3, python2, lua, ruby and perl packages because of their 
+Summary:                The VIM version of the vi editor for the X Window System - GVim
+Requires:               vim-common = %{epoch}:%{version}-%{release} libattr >= 2.4 gtk3
+Provides:               gvim = %{version}-%{release}
+Provides:               %{_bindir}/mergetool
+Provides:               %{_bindir}/gvim
+BuildRequires:          gtk3-devel libSM-devel libXt-devel libXpm-devel libappstream-glib
+Requires:               hicolor-icon-theme
+# suggest python3, python2, lua, ruby and perl packages because of their
 # embedded functionality in Vim/GVim
-Suggests:           python2 python2-libs 
-Suggests:           python3 python3-libs
-Suggests:           perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version)) perl-libs perl-devel
+Suggests:               python2 python2-libs
+Suggests:               python3 python3-libs
+Suggests:               perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version)) perl-libs perl-devel
 %if "%{withruby}" == "1"
-Suggests:           ruby-libs ruby
+Suggests:               ruby-libs ruby
 %endif
 %if "%{withlua}" == "1"
-Suggests:           lua-libs
+Suggests:               lua-libs
 %endif
 
 %description X11
@@ -280,7 +280,7 @@ export RHEL_ALLOW_PYTHON2_FOR_BUILD=1
 cd src
 autoconf
 
-sed -e "s+VIMRCLOC	= \$(VIMLOC)+VIMRCLOC	= /etc+" Makefile > Makefile.tmp
+sed -e "s+VIMRCLOC  = \$(VIMLOC)+VIMRCLOC   = /etc+" Makefile > Makefile.tmp
 mv -f Makefile.tmp Makefile
 
 export CFLAGS="%{optflags} -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_FORTIFY_SOURCE=2 -I%{python3path}"
@@ -535,7 +535,7 @@ install -p -m644 %{SOURCE5} %{buildroot}/%{_sysconfdir}/vimrc
 mkdir -p %{buildroot}%{_rpmconfigdir}/macros.d/
 install -p -m644 %{SOURCE16} %{buildroot}%{_rpmconfigdir}/macros.d/
 
-(cd ../runtime; rm -rf doc; ln -svf ../../vim/%{vimdir}/doc docs;) 
+(cd ../runtime; rm -rf doc; ln -svf ../../vim/%{vimdir}/doc docs;)
 rm -f %{buildroot}/%{_datadir}/vim/%{vimdir}/macros/maze/maze*.c
 rm -rf %{buildroot}/%{_datadir}/vim/%{vimdir}/tools
 rm -rf %{buildroot}/%{_datadir}/vim/%{vimdir}/doc/vim2html.pl
@@ -564,7 +564,7 @@ for i in fr.UTF-8 it.UTF-8 pl.UTF-8; do
   rm -rf %{buildroot}/%{_mandir}/$i
 done
 
-for i in rvim.1 gvim.1 gex.1 gview.1 vimx.1; do 
+for i in rvim.1 gvim.1 gex.1 gview.1 vimx.1; do
   echo ".so man1/vim.1" > %{buildroot}/%{_mandir}/man1/$i
 done
 echo ".so man1/vimdiff.1" > %{buildroot}/%{_mandir}/man1/gvimdiff.1
@@ -1349,7 +1349,7 @@ touch %{buildroot}/%{_datadir}/%{name}/vimfiles/doc/tags
 - Perl 5.26 rebuild
 
 * Mon May 29 2017 Zdenek Dohnal <zdohnal@redhat.com> - 2:8.0.606-2
-- 1456455 - vim-8.0.600-1.fc27 FTBFS with Perl 5.26.0 
+- 1456455 - vim-8.0.600-1.fc27 FTBFS with Perl 5.26.0
 
 * Mon May 29 2017 Karsten Hopp <karsten@redhat.com> 8.0.606-1
 - patchlevel 606
